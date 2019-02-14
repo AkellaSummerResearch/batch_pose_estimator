@@ -1,0 +1,15 @@
+<launch>
+
+    <node pkg="batch_pose_estimator" type="batch_solver" name="batch_solver" output="screen">
+
+    	<!-- Minimum number of elements to start the batch solver -->
+    	<param name="min_elements" value="200"/>
+
+		<!-- Image topics -->
+		<!-- NOTE: input topics have to be time-synchronized (header/stamp should match) -->
+		<param name="input_pose_topic" value="/Frodo/local_odom"/>
+		<param name="input_slam_topic" value="/RGBD/CamPoseENUFrame"/>
+		<param name="out_topic" value="/relative_pose_solution"/>
+	</node>
+
+</launch>
