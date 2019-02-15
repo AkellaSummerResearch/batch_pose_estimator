@@ -153,7 +153,6 @@ class BatchPoseSolver {
     n_elements_ = req.data;
     get_data_ = true;
     pose_pair_vec_.clear();
-    res.message = "Starting new batch!";
     res.success = true;
     return true;
   }
