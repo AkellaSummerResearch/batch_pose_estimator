@@ -12,4 +12,7 @@
 		<param name="out_topic" value="/relative_pose_solution"/>
 	</node>
 
+	<!-- Launch Vicon -->
+  	<!-- <include file="$(find vicon)/launch/vicon.launch"> </include> -->
+
 </launch>

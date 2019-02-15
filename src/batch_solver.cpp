@@ -8,6 +8,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_srvs/Trigger.h>
 
+#include <mg_msgs/SetInteger.h>
+
 #include "batch_pose_estimator/msg_conversions.h"
 
 // typedef message_filters::sync_policies::ExactTime<nav_msgs::Odometry, geometry_msgs::PoseStamped> SyncPolicy;
@@ -22,7 +24,7 @@ class BatchPoseSolver {
   message_filters::Subscriber<nav_msgs::Odometry> pose_sub_;
   message_filters::Subscriber<geometry_msgs::PoseStamped> slam_sub_;
   std::vector<std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> > pose_pair_vec_;
-  int min_elements_;
+  int n_elements_;
   bool get_data_;
   ros::Publisher rel_pose_pub_;
   ros::Publisher pose_pub_, slam_pub;
@@ -34,7 +36,6 @@ class BatchPoseSolver {
     nh_.getParam("input_pose_topic", in_pose_topic_);
     nh_.getParam("input_slam_topic", in_slam_topic_);
     nh_.getParam("out_topic", out_batch_result_topic_);
-    nh_.getParam("min_elements", min_elements_);
 
     // Subscribe to position measurements and slam measurements
     pose_sub_.subscribe(nh_, in_pose_topic_, 1);
@@ -70,9 +71,11 @@ class BatchPoseSolver {
     // Debug prints
     // ROS_INFO("dt = %f", (pose_msg->header.stamp - slam_msg->header.stamp).toSec());
     // ROS_INFO("count = %zd", pose_pair_vec_.size());
+    printf("\rNumber of pose/slam pairs = %zd", pose_pair_vec_.size());
+    std::fflush(stdout);
 
     // If there are more than the minimum number of elements, solve for relative pose
-    if (pose_pair_vec_.size() >= min_elements_) {
+    if (pose_pair_vec_.size() >= n_elements_) {
       ROS_INFO("Solving for relative pose...");
 
       // Relative orientation between the frames
@@ -146,7 +149,8 @@ class BatchPoseSolver {
     return Eigen::Quaterniond(U(0,0), U(1,0), U(2,0), U(3,0));
   }
 
-  bool StartNewBatch(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
+  bool StartNewBatch(mg_msgs::SetInteger::Request &req, mg_msgs::SetInteger::Response &res) {
+    n_elements_ = req.data;
     get_data_ = true;
     pose_pair_vec_.clear();
     res.message = "Starting new batch!";

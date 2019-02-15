@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   cmake_modules
   std_srvs
+  mg_msgs
 )
 
 
@@ -21,6 +22,7 @@ find_package(Eigen REQUIRED)
 
 catkin_package(
   DEPENDS Eigen
+  CATKIN_DEPENDS mg_msgs
 )
 
 ###########
@@ -38,3 +40,5 @@ include_directories(
 add_executable(batch_solver src/batch_solver.cpp
                             src/msg_conversions.cpp)
 target_link_libraries(batch_solver ${catkin_LIBRARIES})
+add_dependencies(batch_solver batch_solver_generate_messages_cpp)
+add_dependencies(batch_solver mg_msgs_gencpp)
