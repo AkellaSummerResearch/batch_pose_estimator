@@ -8,7 +8,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_srvs/Trigger.h>
 
-#include <mg_msgs/SetInteger.h>
+#include <mg_msgs/RequestRelativePoseBatch.h>
 
 #include "batch_pose_estimator/msg_conversions.h"
 
@@ -26,9 +26,9 @@ class BatchPoseSolver {
   std::vector<std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> > pose_pair_vec_;
   int n_elements_;
   bool get_data_;
-  ros::Publisher rel_pose_pub_;
   ros::Publisher pose_pub_, slam_pub;
   ros::ServiceServer start_new_batch_srv_;
+  geometry_msgs::Pose rel_pose_;
 
  public:
   BatchPoseSolver(ros::NodeHandle *nh) {
@@ -43,18 +43,20 @@ class BatchPoseSolver {
     sync_.reset(new Sync(SyncPolicyApprox(10), pose_sub_, slam_sub_));
     sync_->registerCallback(boost::bind(&BatchPoseSolver::PoseCallback, this, _1, _2));
 
+    // Set default number of elements
+    n_elements_ = 100;
+
     // Service for starting a new batch problem
     new_batch_srv_name_ = "start_new_batch";
     start_new_batch_srv_ = nh_.advertiseService(new_batch_srv_name_,
                                                 &BatchPoseSolver::StartNewBatch, this);
 
-    // Publisher for relative pose
-    rel_pose_pub_ = nh_.advertise<nav_msgs::Odometry>(out_batch_result_topic_, 1000);
+    // Debug publishers
     pose_pub_ = nh_.advertise<nav_msgs::Odometry>("pose", 1000);
     slam_pub = nh_.advertise<geometry_msgs::PoseStamped>("slam", 1000);
 
     // Set callback to capture data for a batch estimation
-    get_data_ = true;
+    get_data_ = false;
 
   }
 
@@ -80,17 +82,16 @@ class BatchPoseSolver {
 
       // Relative orientation between the frames
       Eigen::Quaterniond q_rel = this->SolveRelativeOrientation(pose_pair_vec_);
-      Eigen::Matrix3d rot = q_rel.toRotationMatrix().transpose();
+      Eigen::Matrix3d rot = q_rel.toRotationMatrix();
       std::cout << "Relative rotation: " << std::endl << rot << std::endl;
 
       // Relative position between the frames
       Eigen::Vector3d pos = this->SolveRelativePosition(pose_pair_vec_, rot);
       std::cout << "Relative position: " << std::endl << pos << std::endl << std::endl;
 
-      // Publish results
-      geometry_msgs::Pose rel_pose;
-      rel_pose.position = msg_conversions::eigen_to_ros_point(pos);
-      rel_pose.orientation = msg_conversions::eigen_to_ros_quat(q_rel);
+      // Update results
+      rel_pose_.position = msg_conversions::eigen_to_ros_point(pos);
+      rel_pose_.orientation = msg_conversions::eigen_to_ros_quat(q_rel);
 
       // Clear vector of measurements
       pose_pair_vec_.clear();
@@ -149,18 +150,31 @@ class BatchPoseSolver {
     return Eigen::Quaterniond(U(0,0), U(1,0), U(2,0), U(3,0));
   }
 
-  bool StartNewBatch(mg_msgs::SetInteger::Request &req, mg_msgs::SetInteger::Response &res) {
-    n_elements_ = req.data;
-    get_data_ = true;
+  bool StartNewBatch(mg_msgs::RequestRelativePoseBatch::Request &req,
+                     mg_msgs::RequestRelativePoseBatch::Response &res) {
+    if (req.data > 0) {  // If requested number is <1, then n_elements_ takes its default value of 100
+      n_elements_ = req.data;
+    }
     pose_pair_vec_.clear();
-    res.success = true;
+    get_data_ = true;
+
+    ROS_INFO("Starting new relative pose batch with %d measurements!", n_elements_);
+
+    // Wait until result is obtained
+    ros::Rate loop_rate(10);
+    while (get_data_ == true) {
+      loop_rate.sleep();
+    }
+
+    // Return the calculated relative pose
+    res.pose = rel_pose_;
     return true;
   }
 };
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "batch_solver");
+  ros::init(argc, argv, "relative_pose_solver");
   ros::NodeHandle node("~");
 
   BatchPoseSolver solver(&node);
