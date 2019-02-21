@@ -43,6 +43,9 @@ class BatchPoseSolver {
     sync_.reset(new Sync(SyncPolicyApprox(10), pose_sub_, slam_sub_));
     sync_->registerCallback(boost::bind(&BatchPoseSolver::PoseCallback, this, _1, _2));
 
+    ROS_INFO("Input pose topic: %s", pose_sub_.getTopic().c_str());
+    ROS_INFO("Input slam topic: %s", slam_sub_.getTopic().c_str());
+
     // Set default number of elements
     n_elements_ = 100;
 
@@ -163,6 +166,7 @@ class BatchPoseSolver {
     // Wait until result is obtained
     ros::Rate loop_rate(10);
     while (get_data_ == true) {
+      ros::spinOnce();
       loop_rate.sleep();
     }
 

@@ -1,5 +1,7 @@
 <launch>
 
+	<arg name="namespace" default="Frodo"/>
+
     <node pkg="batch_pose_estimator" type="batch_solver" name="batch_solver" output="screen">
 
     	<!-- Minimum number of elements to start the batch solver -->
@@ -7,12 +9,9 @@
 
 		<!-- Image topics -->
 		<!-- NOTE: input topics have to be time-synchronized (header/stamp should match) -->
-		<param name="input_pose_topic" value="/Frodo/local_odom"/>
-		<param name="input_slam_topic" value="/RGBD/CamPoseENUFrame"/>
-		<param name="out_topic" value="/relative_pose_solution"/>
+		<param name="input_pose_topic" value="/$(arg namespace)/local_odom"/>
+		<param name="input_slam_topic" value="/$(arg namespace)/RGBD/CamPoseENUFrame"/>
+		<!-- <param name="out_topic" value="/relative_pose_solution"/> -->
 	</node>
-
-	<!-- Launch Vicon -->
-  	<!-- <include file="$(find vicon)/launch/vicon.launch"> </include> -->
 
 </launch>
