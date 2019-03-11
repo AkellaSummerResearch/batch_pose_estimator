@@ -12,6 +12,9 @@
 		<param name="input_pose_topic" value="/$(arg namespace)/local_odom"/>
 		<param name="input_slam_topic" value="/$(arg namespace)/RGBD/CamPoseENUFrame"/>
 		<!-- <param name="out_topic" value="/relative_pose_solution"/> -->
+
+		<!-- Camera position in body frame (in meters) -->
+		<rosparam param="cam_pos_body_frame"> [0.15, 0.0, 0.0] </rosparam>
 	</node>
 
 </launch>

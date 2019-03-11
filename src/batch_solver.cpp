@@ -29,6 +29,7 @@ class BatchPoseSolver {
   ros::Publisher pose_pub_, slam_pub;
   ros::ServiceServer start_new_batch_srv_;
   geometry_msgs::Pose rel_pose_;
+  Eigen::Vector3d cam_pos_body_frame_;
 
  public:
   BatchPoseSolver(ros::NodeHandle *nh) {
@@ -48,6 +49,11 @@ class BatchPoseSolver {
 
     // Set default number of elements
     n_elements_ = 100;
+
+    // Get cam position in body frame
+    std::vector<double> cam_pos;
+    nh_.getParam("cam_pos_body_frame", cam_pos);
+    cam_pos_body_frame_ = Eigen::Vector3d(cam_pos[0], cam_pos[1], cam_pos[2]);
 
     // Service for starting a new batch problem
     new_batch_srv_name_ = "start_new_batch";
@@ -70,7 +76,12 @@ class BatchPoseSolver {
     }
 
     // Save the pair into a vector
-    std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> pose_pair(*pose_msg, *slam_msg);
+    Eigen::Quaterniond q_enu = msg_conversions::ros_to_eigen_quat(pose_msg->pose.pose.orientation);
+    Eigen::Vector3d pos_w = 
+      q_enu.toRotationMatrix()*cam_pos_body_frame_ + msg_conversions::ros_point_to_eigen_vector(pose_msg->pose.pose.position);
+    nav_msgs::Odometry odom = *pose_msg;
+    odom.pose.pose.position = msg_conversions::eigen_to_ros_point(pos_w);
+    std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> pose_pair(odom, *slam_msg);
     pose_pair_vec_.push_back(pose_pair);
 
     // Debug prints
