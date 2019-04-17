@@ -18,12 +18,13 @@ typedef message_filters::Synchronizer<SyncPolicyApprox> Sync;
 
 class BatchPoseSolver {
   ros::NodeHandle nh_;
-  std::string in_pose_topic_, in_slam_topic_, out_batch_result_topic_;
+  std::string in_pose_topic_, in_slam_topic_;
   std::string new_batch_srv_name_;
-  boost::shared_ptr<Sync> sync_;
-  message_filters::Subscriber<nav_msgs::Odometry> pose_sub_;
-  message_filters::Subscriber<geometry_msgs::PoseStamped> slam_sub_;
+  std::vector<boost::shared_ptr<Sync> > sync_;
+  std::vector<message_filters::Subscriber<nav_msgs::Odometry>*> pose_sub_;
+  std::vector<message_filters::Subscriber<geometry_msgs::PoseStamped>*> slam_sub_;
   std::vector<std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> > pose_pair_vec_;
+  std::vector<std::string> namespaces_;
   int n_elements_;
   bool get_data_;
   ros::Publisher pose_pub_, slam_pub;
@@ -36,16 +37,20 @@ class BatchPoseSolver {
     nh_= *nh;
     nh_.getParam("input_pose_topic", in_pose_topic_);
     nh_.getParam("input_slam_topic", in_slam_topic_);
-    nh_.getParam("out_topic", out_batch_result_topic_);
+    nh_.getParam("namespaces", namespaces_);
 
     // Subscribe to position measurements and slam measurements
-    pose_sub_.subscribe(nh_, in_pose_topic_, 1);
-    slam_sub_.subscribe(nh_, in_slam_topic_, 1);
-    sync_.reset(new Sync(SyncPolicyApprox(10), pose_sub_, slam_sub_));
-    sync_->registerCallback(boost::bind(&BatchPoseSolver::PoseCallback, this, _1, _2));
-
-    ROS_INFO("Input pose topic: %s", pose_sub_.getTopic().c_str());
-    ROS_INFO("Input slam topic: %s", slam_sub_.getTopic().c_str());
+    sync_.resize(namespaces_.size());
+    for (uint i = 0; i < namespaces_.size(); i++) {
+      std::string pose_topic = "/" + namespaces_[i] + in_pose_topic_;
+      std::string slam_topic = "/" + namespaces_[i] + in_slam_topic_;
+      pose_sub_.push_back(new message_filters::Subscriber<nav_msgs::Odometry>(nh_, pose_topic, 1));
+      slam_sub_.push_back(new message_filters::Subscriber<geometry_msgs::PoseStamped>(nh_, slam_topic, 1));
+      sync_[i].reset(new Sync(SyncPolicyApprox(10), *pose_sub_[i], *slam_sub_[i]));
+      sync_[i]->registerCallback(boost::bind(&BatchPoseSolver::PoseCallback, this, _1, _2));
+      ROS_INFO("[batch_pose_estimator] Input pose topic: %s", pose_sub_[i]->getTopic().c_str());
+      ROS_INFO("[batch_pose_estimator] Input slam topic: %s", slam_sub_[i]->getTopic().c_str());
+    }
 
     // Set default number of elements
     n_elements_ = 100;
@@ -71,6 +76,7 @@ class BatchPoseSolver {
 
   void PoseCallback(const nav_msgs::Odometry::ConstPtr& pose_msg,
                     const geometry_msgs::PoseStamped::ConstPtr& slam_msg) {
+    // ROS_INFO("%s", pose_msg->child_frame_id.c_str());
     if (!get_data_) {
       return;
     }
@@ -92,7 +98,7 @@ class BatchPoseSolver {
 
     // If there are more than the minimum number of elements, solve for relative pose
     if (pose_pair_vec_.size() >= n_elements_) {
-      ROS_INFO("Solving for relative pose...");
+      ROS_INFO("[batch_pose_estimator] Solving for relative pose...");
 
       // Relative orientation between the frames
       Eigen::Quaterniond q_rel = this->SolveRelativeOrientation(pose_pair_vec_);
@@ -172,7 +178,7 @@ class BatchPoseSolver {
     pose_pair_vec_.clear();
     get_data_ = true;
 
-    ROS_INFO("Starting new relative pose batch with %d measurements!", n_elements_);
+    ROS_INFO("[batch_pose_estimator] Starting new relative pose batch with %d measurements!", n_elements_);
 
     // Wait until result is obtained
     ros::Rate loop_rate(10);
