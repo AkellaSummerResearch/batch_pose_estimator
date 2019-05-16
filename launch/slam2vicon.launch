@@ -13,7 +13,7 @@
 		<param name="input_slam_topic" value="/RGBD/CamPoseENUFrame"/>
 
 		<!-- Namespaces of input topics -->
-		<rosparam param="namespaces" subst_value="true"> ["$(arg namespace)", "Bilbo"] </rosparam>
+		<rosparam param="namespaces" subst_value="true"> ["Frodo", "Bilbo"] </rosparam>
 		
 
 		<!-- Camera position in body frame (in meters) -->
