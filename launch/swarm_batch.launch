@@ -17,7 +17,7 @@
 		
 
 		<!-- Camera position in body frame (in meters) -->
-		<rosparam param="cam_pos_body_frame"> [0.15, 0.0, 0.0] </rosparam>
+		<rosparam param="cam_pos_body_frame"> [0.0, 0.0, 0.0] </rosparam>
 	</node>
 
 </launch>

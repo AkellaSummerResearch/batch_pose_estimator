@@ -1,6 +1,6 @@
 <launch>
 
-	<arg name="namespace" default="Frodo"/>
+	<arg name="namespace" default="Sauron"/>
 
     <node pkg="batch_pose_estimator" type="batch_solver" name="batch_solver" output="screen">
 
@@ -9,15 +9,15 @@
 
 		<!-- Image topics -->
 		<!-- NOTE: input topics have to be time-synchronized (header/stamp should match) -->
-		<param name="input_pose_topic" value="/local_odom"/>
-		<param name="input_slam_topic" value="/RGBD/CamPoseENUFrame"/>
+		<param name="input_pose_topic" value="/t265/odom/center_of_mass"/>
+		<param name="input_slam_topic" value="/RGBD/COMPoseENUFrame"/>
 
 		<!-- Namespaces of input topics -->
-		<rosparam param="namespaces" subst_value="true"> ["Frodo", "Bilbo"] </rosparam>
+		<rosparam param="namespaces" subst_value="true"> ["Sauron", "Bilbo"] </rosparam>
 		
 
 		<!-- Camera position in body frame (in meters) -->
-		<rosparam param="cam_pos_body_frame"> [0.15, 0.0, 0.0] </rosparam>
+		<rosparam param="cam_pos_body_frame"> [0.0, 0.0, 0.0] </rosparam>
 	</node>
 
 </launch>
