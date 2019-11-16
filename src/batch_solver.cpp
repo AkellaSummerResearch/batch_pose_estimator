@@ -25,6 +25,8 @@ class BatchPoseSolver {
   std::vector<message_filters::Subscriber<geometry_msgs::PoseStamped>*> slam_sub_;
   std::vector<std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> > pose_pair_vec_;
   std::vector<std::string> namespaces_;
+  // std::vector<Eigen::Quaterniond> pose_att_vec;
+  // std::vector<Eigen::Vector3d> pose_pos_vec;
   int n_elements_;
   bool get_data_;
   ros::Publisher pose_pub_, slam_pub;
@@ -90,6 +92,10 @@ class BatchPoseSolver {
     std::pair<nav_msgs::Odometry, geometry_msgs::PoseStamped> pose_pair(odom, *slam_msg);
     pose_pair_vec_.push_back(pose_pair);
 
+    // // Create vectors of pose orientation and translation
+    // pose_att_vec.push_back(msg_conversions::ros_to_eigen_quat(pose_msg->pose.pose.orientation));
+    // pose_pos_vec.push_back(msg_conversions::ros_point_to_eigen_vector(pose_msg->pose.pose.position));
+
     // Debug prints
     // ROS_INFO("dt = %f", (pose_msg->header.stamp - slam_msg->header.stamp).toSec());
     // ROS_INFO("count = %zd", pose_pair_vec_.size());
@@ -102,16 +108,20 @@ class BatchPoseSolver {
 
       // Relative orientation between the frames
       Eigen::Quaterniond q_rel = this->SolveRelativeOrientation(pose_pair_vec_);
-      Eigen::Matrix3d rot = q_rel.toRotationMatrix();
+      Eigen::Matrix3d rot = q_rel.toRotationMatrix().transpose();
       std::cout << "Relative rotation: " << std::endl << rot << std::endl;
 
       // Relative position between the frames
       Eigen::Vector3d pos = this->SolveRelativePosition(pose_pair_vec_, rot);
       std::cout << "Relative position: " << std::endl << pos << std::endl << std::endl;
 
+      // // Mean pose of the drone throughout the batch solution
+      // Eigen::Vector3d mean_pos = this->MeanPosition(pose_pos_vec);
+      // Eigen::Quaterniond mean_att = this->AverageQuaternion(pose_att_vec);
+
       // Update results
       rel_pose_.position = msg_conversions::eigen_to_ros_point(pos);
-      rel_pose_.orientation = msg_conversions::eigen_to_ros_quat(q_rel);
+      rel_pose_.orientation = msg_conversions::eigen_to_ros_quat(q_rel.inverse());
 
       // Clear vector of measurements
       pose_pair_vec_.clear();
@@ -129,7 +139,9 @@ class BatchPoseSolver {
         msg_conversions::ros_to_eigen_quat(pose_pair_vec[i].first.pose.pose.orientation);
       Eigen::Quaterniond rot2 = 
         msg_conversions::ros_to_eigen_quat(pose_pair_vec[i].second.pose.orientation);
-      rel_orientations.push_back(rot2.inverse()*rot1);
+      rel_orientations.push_back(rot2*rot1.inverse());
+      // Eigen::Quaterniond quat = rot2*rot1.inverse();
+      // std::cout << quat.w() << " " << quat.x() << " " << quat.y() << " " << quat.z() << std::endl;
     }
 
     return this->AverageQuaternion(rel_orientations);
@@ -148,6 +160,15 @@ class BatchPoseSolver {
     }
 
     return sum_positions/pose_pair_vec.size();
+  }
+
+  Eigen::Vector3d MeanPosition(const std::vector<Eigen::Vector3d> &pos_vec) {
+    Eigen::Vector3d sum_positions = Eigen::Vector3d::Zero();
+    for (uint i = 0; i < pos_vec.size(); i++) {
+      sum_positions = pos_vec[i];
+    }
+
+    return sum_positions/pos_vec.size();
   }
 
   // Algorithm can be seen in:
